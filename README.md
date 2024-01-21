@@ -1,5 +1,5 @@
 # ezfetch
-Fetch Resmed CPAP data from ez Share WiFi SD Card (the white one)
+Fetch Resmed CPAP data from ez Share WiFi SD Card using Windows Powershell
 
 ## Basic instructions
 
