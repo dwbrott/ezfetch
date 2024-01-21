@@ -132,7 +132,7 @@ if (-not $list.SETTINGS -or -not $list.SETTINGS.GetType().IsArray) {
 }
 
 if (-not (Test-Path $outputDir)) {
-    Write-Host "Error: $outputDir doesn't exist. Aborting!"
+    Write-Host "Error: Output folder '$outputDir' doesn't exist. Aborting!"
     exit
 }
 
