@@ -1,5 +1,5 @@
 # ezfetch
-Fetch Resmed data from ez Share WiFi SD Card (the white one)
+Fetch Resmed CPAP data from ez Share WiFi SD Card (the white one)
 
 ## Basic instructions
 
@@ -14,27 +14,22 @@ Fetch Resmed data from ez Share WiFi SD Card (the white one)
   * You'll need at least one WiFi card on your Windows computer
   * Ideally you'll have both Wired Ethernet (for Internet) and WiFi card for ez Share Card
   * If you only have WiFi, you'll need to switch between home network & ez Share Card
-* Find "ez Share"
-* Click Connect (you may have to enter password - default 88888888)
+* Find "ez Share" in the list of WiFi networks
+* Click Connect (The ez Share default password is: _88888888_)
 * When connected to ez Share card via WiFi, click http://192.168.4.1/client?command=version
 * The version information from my ez Share WiFi card is below **not all ez Share WiFi adapters will work**
    
   > LZ1801EDPG:1.0.0:2016-03-19:72 LZ1801EDRS:1.0.0:2016-03-19:72 SPEED:-H:SPEED 
-  
+
+_Note: this script has not been exhaustively tested. It works for me. Your mileage may vary._
+
 ## Installation
 
 ### Step 1 - Download ezfetch.ps1 from github
 
-  Find a folder to store both the download powershell script and your SD Card
-  data. Unzip the installation file and you should have the following contents:
-
-  data\
-  ezfetch.ps1
-  readme.txt
-
-  The default folder name for your SD Card data is 'data'.
-  This can be changed by editing the powerscript file you just installed
-
+* In a browser window, click here: https://github.com/dwbrott/ezfetch
+* Download **ezfetch.ps1** and save it into a folder on your computer where you will run it
+  
 ### Step 2 - Add ezshare.card to hosts file
 
   Since the ezcard HTTP servers redirects you to host called 'ezshare.card'
@@ -53,6 +48,7 @@ Fetch Resmed data from ez Share WiFi SD Card (the white one)
 ```
 192.168.4.1    ezshare.card
 ```
+
 * Save the file
 * Close the editor
 
@@ -60,14 +56,19 @@ Fetch Resmed data from ez Share WiFi SD Card (the white one)
 
 * Click Windows -> Type Powershell
 * Click on Windows Powershell App (do not start as Administrator)
-* Enter **_ping ezshare.card_** in powershell
+* Enter the following command in Powershell
+
+```
+ping ezshare.card
+```
+
 * If the hostname file was edited correctly, you should see the following:
 
 ```
 Pinging ezshare.card [192.168.4.1] with 32 bytes of data
 ```
 
-* Note: The ping test itself will likely fail, that's OK.  You want to make sure you see this part: **ezshare.card [192.168.4.1]**
+* Note: The ping test itself will likely fail (Request timed out), that's OK.  You want to make sure you see this part: **ezshare.card [192.168.4.1]**
 
 ### Step 4 - Navigate to installation folder in Powershell application
 
@@ -77,10 +78,24 @@ Pinging ezshare.card [192.168.4.1] with 32 bytes of data
   * use **_cd_** command to change to the correct folder
 * Note: If you have OneDrive, you may need to go to OneDrive folder first
 
+### Step 5 - create the data directory
+
+* In the folder with ezfetch.ps1
+* Enter the following command in Powershell
+ 
+```
+md data
+```
+ 
 ### Step 6 - Confirm you can access the card
 
-* Enter **_ping ezshare.card_** in powershell
-* This time youl should see a Reply from the card like this
+* Enter the following command in Powershell
+
+```
+ping ezshare.card
+```
+
+* This time you should see a Reply from the card like this
 
 ```
 Pinging ezshare.card [192.168.4.1] with 32 bytes of data: 
@@ -94,6 +109,11 @@ Reply from 192.168.4.1: bytes=32 time=2ms TTL=255
 
 ### Step 7 - Run the ezshare.ps1 script
 
-* Enter **_ezshare.ps1_** in Powershell
+* Enter the following command in Powershell
+
+```
+ezshare.ps1
+```
+
 * Watch as your data is downloaded (grab some coffee it will likely be slow)
 * Subsequent runs will skip files already downloaded
