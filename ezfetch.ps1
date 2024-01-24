@@ -224,6 +224,9 @@ foreach ($r in $list.DATALOG) {
         New-Item -ItemType Directory -Path "$outputDir\$folder" | Out-Null
     }
 
+    Write-Host ""
+    Write-Host -NoNewline "  $($r.name) "
+
     foreach ($f in $list.$folder) {
         $out = "$outputDir\$folder\" + $f.name
 
@@ -245,5 +248,6 @@ foreach ($r in $list.DATALOG) {
     }
 }
 
+Write-Host ""
 Write-Host " Done"
 exit
