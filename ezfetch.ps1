@@ -136,43 +136,40 @@ if (-not (Test-Path $outputDir)) {
     exit
 }
 
+$dst = $outputDir
 Write-Host -NoNewline "Fetching "
 
 # Files to fetch from root
-# Note: files are compared (by date) and only pulled if newer
-$files = @("Identification.crc", "Identification.json", "STR.edf")
 
-$dst = $outputDir
-foreach ($fn in $files) {
-    foreach ($r in $list.root) {
-        if ($r.name -eq $fn) {
-            $out = Join-Path -Path $dst -ChildPath $r.name
+foreach ($r in $list.root) {
+  if ($r.name -match "System Volume Information") { continue }
+  if ($r.name -match "JOURNAL.JNL") { continue }
+  if ($r.name -match "ezshare.cfg") { continue }
+  if ($r.url -match "^dir?.*" ) { continue }
 
-            if (-not (Test-Path $out)) {
-                $stat = 0
-            }
-            else {
-                $s = Get-Item $out
-                $stat = $s.LastWriteTime.Ticks
-            }
+  $out = Join-Path -Path $dst -ChildPath $r.name
 
-            if (([datetime]::Parse($r.stat)).Ticks -gt $stat) {
-		if ($debug -eq $true) {
-                  Write-Host "Fetching: $($r.name)"
-		} else {
-                  Write-Host -NoNewline "+"
-		}
-                fetchUrl -url $r.url -outfile $out
-            }
-            else {
-		if ($debug -eq $true) {
-                  Write-Host "Skipping: $($r.name)"
-		} else {
-                  Write-Host -NoNewline "."
-		}
-            }
-        }
+  if (-not (Test-Path $out)) {
+    $stat = 0
+  } else {
+    $s = Get-Item $out
+    $stat = $s.LastWriteTime.Ticks
+  }
+
+  if (([datetime]::Parse($r.stat)).Ticks -gt $stat) {
+    if ($debug -eq $true) {
+      Write-Host "Fetching: $($r.name)"
+    } else {
+      Write-Host -NoNewline "+"
     }
+    fetchUrl -url $r.url -outfile $out
+  } else {
+    if ($debug -eq $true) {
+      Write-Host "Skipping: $($r.name)"
+    } else {
+      Write-Host -NoNewline "."
+    }
+  }
 }
 
 # fetch SETTINGS files
