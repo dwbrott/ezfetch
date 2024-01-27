@@ -41,15 +41,25 @@ function fetchUrl($url,$outfile=$null,$debug=0) {
     $url = [System.Web.HttpUtility]::UrlDecode($url)
 
     if ($debug -eq 1) {
-      Write-Host "fetchURL: $url"
+      Write-Host "fetchURL: $url" | Out-Host
     }
 
     if ($outfile -eq $null) {
-      $response = Invoke-WebRequest $url
-    } else {
-      $response = Invoke-WebRequest $url -OutFile $outfile
+      Try {
+        $response = (New-Object System.Net.WebClient).DownloadString($url)
+      } Catch [Exception] {
+        Write-Host $_.Exception | format-list -force | Out-Host
+      }
+      return $response
     }
-    return $response.Content
+
+    $outfile = "$PWD\$outfile"
+    Try {
+      (New-Object System.Net.WebClient).DownloadFile($url, $outfile)
+    } Catch [Exception] {
+      Write-Host $_.Exception | format-list -force | Out-Host
+    }
+    return $null
 }
 
 function listDir($url, $dir = "root") {
@@ -137,7 +147,7 @@ if (-not (Test-Path $outputDir)) {
 }
 
 $dst = $outputDir
-Write-Host -NoNewline "Fetching "
+Write-Host -NoNewline "Fetching " | Out-Host
 
 # Files to fetch from root
 
@@ -158,16 +168,16 @@ foreach ($r in $list.root) {
 
   if (([datetime]::Parse($r.stat)).Ticks -gt $stat) {
     if ($debug -eq $true) {
-      Write-Host "Fetching: $($r.name)"
+      Write-Host "Fetching: $($r.name)" | Out-Host
     } else {
-      Write-Host -NoNewline "+"
+      Write-Host -NoNewline "+" | Out-Host
     }
     fetchUrl -url $r.url -outfile $out
   } else {
     if ($debug -eq $true) {
-      Write-Host "Skipping: $($r.name)"
+      Write-Host "Skipping: $($r.name)" | Out-Host
     } else {
-      Write-Host -NoNewline "."
+      Write-Host -NoNewline "." | Out-Host
     }
   }
 }
@@ -188,17 +198,17 @@ foreach ($r in $list.SETTINGS) {
 
   if (-not (Test-Path $out)) {
     if ($debug -eq $true) {
-      Write-Host "Fetching: $out"
+      Write-Host "Fetching: $out" | Out-Host
     } else {
-      Write-Host -NoNewline "+"
+      Write-Host -NoNewline "+" | Out-Host
     }
     fetchUrl -url $r.url -outfile $out
   }
   else {
     if ($debug -eq $true) {
-      Write-Host "Skipping: $out"
+      Write-Host "Skipping: $out" | Out-Host
     } else {
-      Write-Host -NoNewline "."
+      Write-Host -NoNewline "." | Out-Host
     }
   }
 }
@@ -221,25 +231,25 @@ foreach ($r in $list.DATALOG) {
         New-Item -ItemType Directory -Path "$outputDir\$folder" | Out-Null
     }
 
-    Write-Host ""
-    Write-Host -NoNewline "  $($r.name) "
+    Write-Host "" | Out-Host
+    Write-Host -NoNewline "  $($r.name) " | Out-Host
 
     foreach ($f in $list.$folder) {
         $out = "$outputDir\$folder\" + $f.name
 
         if (-not (Test-Path $out)) {
 	  if ($debug -eq $true) {
-            Write-Host "Fetching: $out"
+            Write-Host "Fetching: $out" | Out-Host
 	  } else {
-            Write-Host -NoNewline "+"
+            Write-Host -NoNewline "+" | Out-Host
 	  }
           fetchUrl -url $f.url -outfile $out
         }
         else {
 	  if ($debug -eq $true) {
-            Write-Host "Skipping: $out"
+            Write-Host "Skipping: $out" | Out-Host
 	  } else {
-            Write-Host -NoNewline "."
+            Write-Host -NoNewline "." | Out-Host
 	  }
         }
     }
