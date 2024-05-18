@@ -63,11 +63,6 @@ function listDir($url, $dir = "root") {
 
             if ($m[5] -eq "." -or $m[5] -eq "..") { continue }
 
-            if ($m[5] -match "([^.]+)\.(EDF|edf)") {
-                $n = [regex]::Match($m[5], "([^.]+)\.(EDF|edf)").Groups.Value
-                $m[5] = $n[1] + ".edf"
-            }
-
             $time = [DateTime]::ParseExact("$($m[1]) $($m[2])", "yyyy-MM-dd HH:mm:ss", $null).AddHours($myTimezone)
             $new = @{
                 stat = $time.ToString('yyyy-MM-dd HH:mm:ss')
@@ -164,7 +159,6 @@ Write-Host -NoNewline "Fetching " | Out-Host
 
 foreach ($r in $list.root) {
   if ($r.name -match "System Volume Information") { continue }
-  if ($r.name -match "JOURNAL.JNL") { continue }
   if ($r.name -match "ezshare.cfg") { continue }
   if ($r.url -match "^dir?.*" ) { continue }
 
