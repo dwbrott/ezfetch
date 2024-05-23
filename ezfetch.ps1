@@ -1,3 +1,10 @@
+# Configuration Settings:
+#   Execute with admin rights to manage wifi adapter and radio state; non-admin will just connect if needed
+#   Assumes SSID/profile name match for the ezShare connection
+#   ezShare card SSID password stored in wifi profile; user needs to manually connect to ezShare once
+#   Restores wifi adapter/radio/connection state post-execution including previous SSID connection
+#   Set "ezShareSsid" to "" to omit wifi adapter/radio state/connection logic
+$ezShareSsid = ""
 
 # Name of directory where SD Card data will be stored
 $outputDir = "data"
@@ -7,35 +14,6 @@ $debug = $false
 #                                                                      #
 
 Add-Type -AssemblyName System.Web;
-
-# Define a function to check if a service is reachable
-function servicePing([string]$EZhost, [int]$port=80, [int]$timeout=1) {
-  $cnt = 0
-  $max = 3
-  do {
-    $cnt++
-    $rtn = $false
-    try {
-      $socket = New-Object System.Net.Sockets.TcpClient
-      $result = $socket.BeginConnect($EZhost, $port, $null, $null)
-      $wait = $result.AsyncWaitHandle.WaitOne($timeout * 1000, $false)
-      if (-not $wait) {
-        $socket.Close()
-        $rtn = $false
-      }
-      else {
-        $socket.EndConnect($result) | Out-Null
-        $socket.Close()
-        $rtn = $true
-      }
-    }
-    catch {
-      $rtn = $false
-    }
-  } while ($cnt -lt $max)
-
-  return $rtn
-}
 
 function fetchUrl($url,$outfile=$null,$debug=0) {
     $url = [System.Web.HttpUtility]::UrlDecode($url)
@@ -85,11 +63,6 @@ function listDir($url, $dir = "root") {
 
             if ($m[5] -eq "." -or $m[5] -eq "..") { continue }
 
-            if ($m[5] -match "([^.]+)\.(EDF|edf)") {
-                $n = [regex]::Match($m[5], "([^.]+)\.(EDF|edf)").Groups.Value
-                $m[5] = $n[1] + ".edf"
-            }
-
             $time = [DateTime]::ParseExact("$($m[1]) $($m[2])", "yyyy-MM-dd HH:mm:ss", $null).AddHours($myTimezone)
             $new = @{
                 stat = $time.ToString('yyyy-MM-dd HH:mm:ss')
@@ -117,11 +90,44 @@ function listDir($url, $dir = "root") {
     return $list
 }
 
-# Check if the service is reachable
-if (-not (servicePing "ezshare.card")) {
-    Write-Host "Error: ez Share Card: Connection Failed"
-    exit
+# Check if the script is running as an administrator
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+
+# Check if the Wi-Fi adapter is disabled and enable it
+$didAdapterEnable = $false
+$wifiAdapter = Get-NetAdapter -Name "Wi-Fi"
+if ($isAdmin -and $ezShareSsid -ne "" -and $wifiAdapter.Status -eq "Disabled") {
+    Enable-NetAdapter -Name "Wi-Fi" -Confirm:$false
+    $didAdapterEnable = $true
 }
+
+# Check if the Wi-Fi radio is off and turn it on
+$didRadioTurnOn = $false
+$wifiSoftwareRadioOff = Get-NetAdapterAdvancedProperty -Name "Wi-Fi" -AllProperties -RegistryKeyword "SoftwareRadioOff"
+if ($isAdmin -and $ezShareSsid -ne "" -and $wifiSoftwareRadioOff.RegistryValue -eq 1) {
+    Set-NetAdapterAdvancedProperty -Name "Wi-Fi" -AllProperties -RegistryKeyword "SoftwareRadioOff" -RegistryValue 0
+    $didRadioTurnOn = $true
+}
+
+# Check if we are already connected to the desired SSID profile
+$didSsidConnect = $false
+$connectedSsidProfile = @(netsh wlan show interfaces | Where-Object { $_ -Match '\bSSID\s+:' -or $_ -Match '\bProfile\s+:' } | ForEach-Object { ($_ -split ':')[1].Trim() }) + @("", "")
+if ($ezShareSsid -ne "" -and $connectedSsidProfile[0] -ne "$ezShareSsid") {
+    # Connect to the SSID/profile
+    netsh wlan connect ssid="$ezShareSsid" name="$ezShareSsid" >$null 2>&1
+    $didSsidConnect = $true
+}
+
+# Wait for the ping response from the specified address
+# Note: Can use "192.16.8.4.1" instead of "ezshare.card" if you wish
+$ezShareAddress = "ezshare.card"
+Write-Host "Waiting for ez Share Site (Ctrl-C to Cancel): " -NoNewline
+do {
+    Write-Host "." -NoNewline
+    $pingResult = Test-Connection -ComputerName "$ezShareAddress" -Count 1 -Quiet
+    Start-Sleep -Seconds 2
+} while (!$pingResult)
+Write-Host ""
 
 $url = "http://ezshare.card/dir?dir=A:"
 $list = listDir -url $url;
@@ -153,7 +159,6 @@ Write-Host -NoNewline "Fetching " | Out-Host
 
 foreach ($r in $list.root) {
   if ($r.name -match "System Volume Information") { continue }
-  if ($r.name -match "JOURNAL.JNL") { continue }
   if ($r.name -match "ezshare.cfg") { continue }
   if ($r.url -match "^dir?.*" ) { continue }
 
@@ -254,7 +259,25 @@ foreach ($r in $list.DATALOG) {
         }
     }
 }
-
 Write-Host ""
+
+# Restore State: Disconnect from the SSID, turn off radio, disable the adapter only if the script connected to them
+if ($didSsidConnect) {
+    # Re-connect to the old connected network, or dissconnect if blank
+    if ($connectedSsidProfile[0] -eq "") {
+        netsh wlan disconnect >$null 2>&1
+    } else {
+        netsh wlan connect ssid="$connectedSsidProfile[0]" name="$connectedSsidProfile[1]" >$null 2>&1
+    }
+}
+if ($didRadioTurnOn) {
+    # Turn off the Wi-Fi radio
+    Set-NetAdapterAdvancedProperty -Name "Wi-Fi" -AllProperties -RegistryKeyword "SoftwareRadioOff" -RegistryValue 1
+}
+if ($didAdapterEnable) {
+    # Disable the Wi-Fi adapter
+    Disable-NetAdapter -Name "Wi-Fi" -Confirm:$false
+}
+
 Write-Host " Done"
 exit
