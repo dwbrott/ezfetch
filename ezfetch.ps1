@@ -1,7 +1,7 @@
-# Configuration Settings:
+# WiFi Configuration Settings:
 #   Execute with admin rights to manage wifi adapter and radio state; non-admin will just connect if needed
-#   Assumes SSID/profile name match for the ezShare connection
-#   ezShare card SSID password stored in wifi profile; user needs to manually connect to ezShare once
+#   Assumes SSID matches profile name for the ezShare connection
+#   ezShare card SSID password stored in Windows wifi profile; user needs to manually connect to ezShare once
 #   Restores wifi adapter/radio/connection state post-execution including previous SSID connection
 #   Set "ezShareSsid" to "" to omit wifi adapter/radio state/connection logic
 $ezShareSsid = ""
@@ -109,11 +109,10 @@ if ($isAdmin -and $ezShareSsid -ne "" -and $wifiSoftwareRadioOff.RegistryValue -
     $didRadioTurnOn = $true
 }
 
-# Check if we are already connected to the desired SSID profile
+# Check if we are not connected to the desired SSID/profile and connect
 $didSsidConnect = $false
 $connectedSsidProfile = @(netsh wlan show interfaces | Where-Object { $_ -Match '\bSSID\s+:' -or $_ -Match '\bProfile\s+:' } | ForEach-Object { ($_ -split ':')[1].Trim() }) + @("", "")
 if ($ezShareSsid -ne "" -and $connectedSsidProfile[0] -ne "$ezShareSsid") {
-    # Connect to the SSID/profile
     netsh wlan connect ssid="$ezShareSsid" name="$ezShareSsid" >$null 2>&1
     $didSsidConnect = $true
 }
@@ -129,7 +128,7 @@ do {
 } while (!$pingResult)
 Write-Host ""
 
-$url = "http://ezshare.card/dir?dir=A:"
+$url = "http://$ezShareAddress/dir?dir=A:"
 $list = listDir -url $url;
 
 if (-not $list.root -or -not $list.root.GetType().IsArray) {
