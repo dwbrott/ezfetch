@@ -97,24 +97,41 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 $didAdapterEnable = $false
 $wifiAdapter = Get-NetAdapter -Name "Wi-Fi"
 if ($isAdmin -and $ezShareSsid -ne "" -and $wifiAdapter.Status -eq "Disabled") {
-    Enable-NetAdapter -Name "Wi-Fi" -Confirm:$false
-    $didAdapterEnable = $true
+    try {
+        Enable-NetAdapter -Name "Wi-Fi" -Confirm:$false
+        $didAdapterEnable = $true
+    } catch {
+        Write-Host "NetAdapter: Failed to enable the Wi-Fi adapter."
+    }
 }
 
 # Check if the Wi-Fi radio is off and turn it on
 $didRadioTurnOn = $false
 $wifiSoftwareRadioOff = Get-NetAdapterAdvancedProperty -Name "Wi-Fi" -AllProperties -RegistryKeyword "SoftwareRadioOff"
 if ($isAdmin -and $ezShareSsid -ne "" -and $wifiSoftwareRadioOff.RegistryValue -eq 1) {
-    Set-NetAdapterAdvancedProperty -Name "Wi-Fi" -AllProperties -RegistryKeyword "SoftwareRadioOff" -RegistryValue 0
-    $didRadioTurnOn = $true
+    try {
+        Set-NetAdapterAdvancedProperty -Name "Wi-Fi" -AllProperties -RegistryKeyword "SoftwareRadioOff" -RegistryValue 0
+        $didRadioTurnOn = $true
+    } catch {
+        Write-Host "NetAdapterAdvancedProperty: Failed to turn on the Wi-Fi radio."
+    }
 }
 
 # Check if we are not connected to the desired SSID/profile and connect
+# Note: this activates a wifi profile, it is possible the profile exists in the system (connected to in the past) but not connectable right now, in which case the command will still succeed
 $didSsidConnect = $false
 $connectedSsidProfile = @(netsh wlan show interfaces | Where-Object { $_ -Match '\bSSID\s+:' -or $_ -Match '\bProfile\s+:' } | ForEach-Object { ($_ -split ':')[1].Trim() }) + @("", "")
 if ($ezShareSsid -ne "" -and $connectedSsidProfile[0] -ne "$ezShareSsid") {
-    netsh wlan connect ssid="$ezShareSsid" name="$ezShareSsid" >$null 2>&1
-    $didSsidConnect = $true
+    try {
+        netsh wlan connect ssid="$ezShareSsid" name="$ezShareSsid" >$null 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $didSsidConnect = $true
+        } else {
+            Write-Host "netsh: Failed to connect to SSID $ezShareSsid"
+        }
+    } catch {
+        Write-Host "netsh: Failure"
+    }
 }
 
 # Wait for the ping response from the specified address
@@ -177,6 +194,17 @@ foreach ($r in $list.root) {
       Write-Host -NoNewline "+" | Out-Host
     }
     fetchUrl -url $r.url -outfile $out
+
+    # ezShare card seems to list DOS filename for some Air10/11 files, manually rename those files if fetched
+    $manualRenameFilesMap = New-Object 'System.Collections.Generic.Dictionary[string,string]'
+    $manualRenameFilesMap.Add("JOURNAL.JNL", "journal.jnl")
+    $manualRenameFilesMap.Add("STR.EDF", "STR.edf")
+    if ($manualRenameFilesMap.ContainsKey($r.name)) {
+      if ($debug -eq $true) {
+        Write-Host "Renaming to: $($manualRenameFilesMap[$r.name])" | Out-Host
+      }
+      Rename-Item -Path $out -NewName $manualRenameFilesMap[$r.name]
+    }
   } else {
     if ($debug -eq $true) {
       Write-Host "Skipping: $($r.name)" | Out-Host
